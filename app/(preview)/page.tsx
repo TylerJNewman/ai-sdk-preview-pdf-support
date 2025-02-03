@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { experimental_useObject } from "ai/react";
-import { questionsSchema } from "@/lib/schemas";
+import { documentAnalysisSchema } from "@/lib/schemas";
 import { z } from "zod";
 import { toast } from "sonner";
 import { FileUp, Plus, Loader2 } from "lucide-react";
@@ -16,35 +16,31 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import Quiz from "@/components/quiz";
 import { Link } from "@/components/ui/link";
 import NextLink from "next/link";
-import { generateQuizTitle } from "./actions";
 import { AnimatePresence, motion } from "framer-motion";
 import { VercelIcon, GitIcon } from "@/components/icons";
+import DocumentAnalysis from "@/components/document-analysis";
 
-export default function ChatWithFiles() {
+export default function AnalyzeDocument() {
   const [files, setFiles] = useState<File[]>([]);
-  const [questions, setQuestions] = useState<z.infer<typeof questionsSchema>>(
-    [],
-  );
+  const [analysis, setAnalysis] = useState<z.infer<typeof documentAnalysisSchema>>();
   const [isDragging, setIsDragging] = useState(false);
-  const [title, setTitle] = useState<string>();
 
   const {
     submit,
-    object: partialQuestions,
+    object: partialAnalysis,
     isLoading,
   } = experimental_useObject({
     api: "/api/generate-quiz",
-    schema: questionsSchema,
+    schema: documentAnalysisSchema,
     initialValue: undefined,
     onError: (error) => {
-      toast.error("Failed to generate quiz. Please try again.");
+      toast.error("Failed to analyze document. Please try again.");
       setFiles([]);
     },
     onFinish: ({ object }) => {
-      setQuestions(object ?? []);
+      setAnalysis(object);
     },
   });
 
@@ -90,21 +86,15 @@ export default function ChatWithFiles() {
       })),
     );
     submit({ files: encodedFiles });
-    const generatedTitle = await generateQuizTitle(encodedFiles[0].name);
-    setTitle(generatedTitle);
   };
 
   const clearPDF = () => {
     setFiles([]);
-    setQuestions([]);
+    setAnalysis(undefined);
   };
 
-  const progress = partialQuestions ? (partialQuestions.length / 4) * 100 : 0;
-
-  if (questions.length === 4) {
-    return (
-      <Quiz title={title ?? "Quiz"} questions={questions} clearPDF={clearPDF} />
-    );
+  if (analysis) {
+    return <DocumentAnalysis analysis={analysis} clearPDF={clearPDF} />;
   }
 
   return (
@@ -154,11 +144,11 @@ export default function ChatWithFiles() {
           </div>
           <div className="space-y-2">
             <CardTitle className="text-2xl font-bold">
-              PDF Quiz Generator
+              Document Analyzer
             </CardTitle>
             <CardDescription className="text-base">
-              Upload a PDF to generate an interactive quiz based on its content
-              using the <Link href="https://sdk.vercel.ai">AI SDK</Link> and{" "}
+              Upload a PDF to analyze its content for signatures and required fields using the{" "}
+              <Link href="https://sdk.vercel.ai">AI SDK</Link> and{" "}
               <Link href="https://sdk.vercel.ai/providers/ai-sdk-providers/google-generative-ai">
                 Google&apos;s Gemini Pro
               </Link>
@@ -196,39 +186,14 @@ export default function ChatWithFiles() {
               {isLoading ? (
                 <span className="flex items-center space-x-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Generating Quiz...</span>
+                  <span>Analyzing Document...</span>
                 </span>
               ) : (
-                "Generate Quiz"
+                "Analyze Document"
               )}
             </Button>
           </form>
         </CardContent>
-        {isLoading && (
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="w-full space-y-1">
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Progress</span>
-                <span>{Math.round(progress)}%</span>
-              </div>
-              <Progress value={progress} className="h-2" />
-            </div>
-            <div className="w-full space-y-2">
-              <div className="grid grid-cols-6 sm:grid-cols-4 items-center space-x-2 text-sm">
-                <div
-                  className={`h-2 w-2 rounded-full ${
-                    isLoading ? "bg-yellow-500/50 animate-pulse" : "bg-muted"
-                  }`}
-                />
-                <span className="text-muted-foreground text-center col-span-4 sm:col-span-2">
-                  {partialQuestions
-                    ? `Generating question ${partialQuestions.length + 1} of 4`
-                    : "Analyzing PDF content"}
-                </span>
-              </div>
-            </div>
-          </CardFooter>
-        )}
       </Card>
       <motion.div
         className="flex flex-row gap-4 items-center justify-between fixed bottom-6 text-xs "

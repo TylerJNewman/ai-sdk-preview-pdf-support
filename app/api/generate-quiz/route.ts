@@ -1,4 +1,4 @@
-import { questionSchema, questionsSchema } from "@/lib/schemas";
+import { documentAnalysisSchema } from "@/lib/schemas";
 import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 
@@ -14,14 +14,14 @@ export async function POST(req: Request) {
       {
         role: "system",
         content:
-          "You are a teacher. Your job is to take a document, and create a multiple choice test (with 4 questions) based on the content of the document. Each option should be roughly equal in length.",
+          "You are a document analyzer. Your job is to analyze documents for signatures and expected fields, determining if they are present and providing confidence levels for missing fields.",
       },
       {
         role: "user",
         content: [
           {
             type: "text",
-            text: "Create a multiple choice test based on this document.",
+            text: "Analyze this document for signatures and expected fields. Determine which fields are present or missing, and provide confidence levels for missing fields.",
           },
           {
             type: "file",
@@ -31,14 +31,7 @@ export async function POST(req: Request) {
         ],
       },
     ],
-    schema: questionSchema,
-    output: "array",
-    onFinish: ({ object }) => {
-      const res = questionsSchema.safeParse(object);
-      if (res.error) {
-        throw new Error(res.error.errors.map((e) => e.message).join("\n"));
-      }
-    },
+    schema: documentAnalysisSchema,
   });
 
   return result.toTextStreamResponse();
