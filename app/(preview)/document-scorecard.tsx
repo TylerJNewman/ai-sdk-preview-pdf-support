@@ -15,6 +15,9 @@ interface ScorecardItem {
   category: string
   title: string
   extractionStatus: string
+  riskLevel: number
+  reason: string
+  isExpanded?: boolean
 }
 
 interface DocumentScorecardProps {
@@ -48,8 +51,26 @@ export default function DocumentScorecard({ analysis, onClose }: DocumentScoreca
     severity: field.riskLevel < 30 ? "Low" : field.riskLevel < 70 ? "Medium" : "High",
     category: "Document Field",
     title: field.fieldName,
-    extractionStatus: field.present ? "Extracted" : "No Extraction"
+    extractionStatus: field.present ? "Extracted" : "Missing",
+    riskLevel: field.riskLevel,
+    reason: field.present 
+      ? field.riskLevel > 70 
+        ? `This field indicates significant issues that require immediate attention. The document may be non-compliant or invalid.`
+        : field.riskLevel > 30
+        ? `This field shows potential issues that should be reviewed. There may be compliance or validity concerns.`
+        : `This field appears to meet all requirements and poses minimal risk.`
+      : `Missing required field - this makes the document potentially invalid or non-compliant.`,
+    isExpanded: false
   }))
+
+  const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
+
+  const toggleItem = (index: number) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
 
   // Calculate statistics
   const highCount = scorecardItems.filter(item => item.severity === "High").length;
@@ -98,25 +119,28 @@ export default function DocumentScorecard({ analysis, onClose }: DocumentScoreca
 
           <div className="mb-6">
             <p className="text-sm text-muted-foreground mb-2">Risk Distribution</p>
-            <div className="space-y-2">
-              <ScoreDistributionBar
-                label="High"
-                count={stats.high}
-                total={stats.total}
-                severityColor={severityColors["High"]}
-              />
-              <ScoreDistributionBar
-                label="Medium"
-                count={stats.medium}
-                total={stats.total}
-                severityColor={severityColors["Medium"]}
-              />
-              <ScoreDistributionBar
-                label="Low"
-                count={stats.low}
-                total={stats.total}
-                severityColor={severityColors["Low"]}
-              />
+            <div className="space-y-3">
+              <div className="flex items-center">
+                <span className="text-sm w-[100px] text-left">High</span>
+                <div className="w-[200px] relative">
+                  <div className="absolute right-0 h-4 bg-red-500 rounded" style={{ width: `${(stats.high / stats.total) * 100}%` }}></div>
+                </div>
+                <span className="text-sm ml-4">{stats.high}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="text-sm w-[100px] text-left">Medium</span>
+                <div className="w-[200px] relative">
+                  <div className="absolute right-0 h-4 bg-orange-400 rounded" style={{ width: `${(stats.medium / stats.total) * 100}%` }}></div>
+                </div>
+                <span className="text-sm ml-4">{stats.medium}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="text-sm w-[100px] text-left">Low</span>
+                <div className="w-[200px] relative">
+                  <div className="absolute right-0 h-4 bg-green-500 rounded" style={{ width: `${(stats.low / stats.total) * 100}%` }}></div>
+                </div>
+                <span className="text-sm ml-4">{stats.low}</span>
+              </div>
             </div>
           </div>
 
@@ -131,28 +155,63 @@ export default function DocumentScorecard({ analysis, onClose }: DocumentScoreca
                   <div className={`w-1 ${getSeverityColor(item.severity)}`} />
                   <div className="p-3 w-full">
                     <div className="flex items-center justify-between mb-1">
-                      <span
-                        className={`text-${item.severity.toLowerCase()}-500 text-sm font-medium`}
+                      <div className="flex items-center gap-2">
+                        <span className={`text-${item.severity.toLowerCase()}-500 text-sm font-medium`}>
+                          {item.severity}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Risk Level: {item.riskLevel}%
+                        </span>
+                      </div>
+                      <button 
+                        onClick={() => toggleItem(i)}
+                        className="hover:bg-secondary rounded-full p-1"
                       >
-                        {item.severity}
-                      </span>
-                      <Info className="h-4 w-4 text-muted-foreground" />
+                        <ChevronDown 
+                          className={`h-4 w-4 text-muted-foreground transition-transform ${
+                            expandedItems[i] ? 'transform rotate-180' : ''
+                          }`} 
+                        />
+                      </button>
                     </div>
                     <div className="text-muted-foreground text-xs mb-1">
                       {item.category}
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground">{item.title}</span>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-foreground font-medium">{item.title}</span>
                     </div>
-                    <div className="flex items-center gap-1 mt-2">
-                      <div className="h-4 w-4 rounded-full bg-secondary flex items-center justify-center text-[10px] text-secondary-foreground">
-                        {item.extractionStatus === "Extracted" ? "✓" : "T"}
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className={`h-4 w-4 rounded-full flex items-center justify-center text-[10px] ${
+                        item.extractionStatus === "Extracted" 
+                          ? "bg-green-500/20 text-green-700"
+                          : "bg-red-500/20 text-red-700"
+                      }`}>
+                        {item.extractionStatus === "Extracted" ? "✓" : "!"}
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className={`text-xs ${
+                        item.extractionStatus === "Extracted"
+                          ? "text-green-700"
+                          : "text-red-700"
+                      }`}>
                         {item.extractionStatus}
                       </span>
                     </div>
+                    {expandedItems[i] && (
+                      <div className="mt-3 pt-3 border-t space-y-2">
+                        <div className="text-sm text-muted-foreground">
+                          <span className="font-medium">Risk Analysis:</span>
+                          <p className="mt-1 text-xs leading-relaxed">{item.reason}</p>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium">Recommended Action: </span>
+                          {item.severity === "High" 
+                            ? "Immediate attention required - document may be invalid"
+                            : item.severity === "Medium"
+                            ? "Review for compliance and validity concerns"
+                            : "No immediate action needed"}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
