@@ -1,11 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import { z } from "zod"
+import { ChevronDown, Info, Menu, X } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronDown, Info, Menu, X } from "lucide-react"
-import { z } from "zod"
 import { documentAnalysisSchema } from "@/lib/schemas"
+
+import { ScoreDistributionBar } from "./DocumentScorecardHelpers"  // example helper file
 
 interface ScorecardItem {
   severity: "High" | "Medium" | "Low"
@@ -19,8 +22,18 @@ interface DocumentScorecardProps {
   onClose?: () => void
 }
 
+const severityColors: Record<ScorecardItem["severity"], string> = {
+  High: "bg-red-500",
+  Medium: "bg-orange-400",
+  Low: "bg-green-500",
+}
+
+function getSeverityColor(severity: ScorecardItem["severity"]): string {
+  return severityColors[severity] ?? "bg-gray-400";
+}
+
 export default function DocumentScorecard({ analysis, onClose }: DocumentScorecardProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (!analysis) {
     return (
@@ -39,20 +52,15 @@ export default function DocumentScorecard({ analysis, onClose }: DocumentScoreca
   }))
 
   // Calculate statistics
+  const highCount = scorecardItems.filter(item => item.severity === "High").length;
+  const mediumCount = scorecardItems.filter(item => item.severity === "Medium").length;
+  const lowCount = scorecardItems.filter(item => item.severity === "Low").length;
+  
   const stats = {
-    high: scorecardItems.filter(item => item.severity === "High").length,
-    medium: scorecardItems.filter(item => item.severity === "Medium").length,
-    low: scorecardItems.filter(item => item.severity === "Low").length,
+    high: highCount,
+    medium: mediumCount,
+    low: lowCount,
     total: scorecardItems.length
-  }
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "High": return "bg-red-500"
-      case "Medium": return "bg-orange-400"
-      case "Low": return "bg-green-500"
-      default: return "bg-gray-400"
-    }
   }
 
   return (
@@ -60,16 +68,20 @@ export default function DocumentScorecard({ analysis, onClose }: DocumentScoreca
       <div className="border-b p-2 flex items-center justify-between">
         <div className="text-foreground text-sm">Document Analysis Scorecard</div>
         <div className="flex gap-2">
-          <button 
+          <button
             className="text-muted-foreground hover:text-foreground"
             onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-label="Toggle collapse"
+            title="Toggle collapse"
           >
             <ChevronDown className="h-4 w-4" />
           </button>
           {onClose && (
-            <button 
+            <button
               className="text-muted-foreground hover:text-foreground"
               onClick={onClose}
+              aria-label="Close scorecard"
+              title="Close"
             >
               <X className="h-4 w-4" />
             </button>
@@ -85,42 +97,50 @@ export default function DocumentScorecard({ analysis, onClose }: DocumentScoreca
           </div>
 
           <div className="mb-6">
-            <div className="text-sm text-muted-foreground mb-2">Risk Distribution</div>
+            <p className="text-sm text-muted-foreground mb-2">Risk Distribution</p>
             <div className="space-y-2">
-              {[
-                { label: "High", count: stats.high, width: (stats.high / stats.total) * 300 },
-                { label: "Medium", count: stats.medium, width: (stats.medium / stats.total) * 300 },
-                { label: "Low", count: stats.low, width: (stats.low / stats.total) * 300 }
-              ].map((level) => (
-                <div key={level.label} className="flex items-center justify-between text-sm text-foreground">
-                  <span>{level.label} Risk</span>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className={`h-4 ${getSeverityColor(level.label)} rounded-sm`} 
-                      style={{ width: `${level.width}px` }}
-                    ></div>
-                    <span>{level.count}</span>
-                  </div>
-                </div>
-              ))}
+              <ScoreDistributionBar
+                label="High"
+                count={stats.high}
+                total={stats.total}
+                severityColor={severityColors["High"]}
+              />
+              <ScoreDistributionBar
+                label="Medium"
+                count={stats.medium}
+                total={stats.total}
+                severityColor={severityColors["Medium"]}
+              />
+              <ScoreDistributionBar
+                label="Low"
+                count={stats.low}
+                total={stats.total}
+                severityColor={severityColors["Low"]}
+              />
             </div>
           </div>
 
-          <div className="text-sm text-foreground mb-4">Document Fields (Total: {stats.total})</div>
+          <p className="text-sm text-foreground mb-4">
+            Document Fields (Total: {stats.total})
+          </p>
 
           <div className="space-y-3 mb-4 overflow-y-auto flex-1">
             {scorecardItems.map((item, i) => (
               <div key={i} className="border rounded-sm">
                 <div className="flex">
-                  <div className={`w-1 ${getSeverityColor(item.severity)}`}></div>
+                  <div className={`w-1 ${getSeverityColor(item.severity)}`} />
                   <div className="p-3 w-full">
                     <div className="flex items-center justify-between mb-1">
-                      <span className={`text-${item.severity.toLowerCase()}-500 text-sm font-medium`}>
-                        {item.severity} Risk
+                      <span
+                        className={`text-${item.severity.toLowerCase()}-500 text-sm font-medium`}
+                      >
+                        {item.severity}
                       </span>
                       <Info className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="text-muted-foreground text-xs mb-1">{item.category}</div>
+                    <div className="text-muted-foreground text-xs mb-1">
+                      {item.category}
+                    </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-foreground">{item.title}</span>
                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -129,7 +149,9 @@ export default function DocumentScorecard({ analysis, onClose }: DocumentScoreca
                       <div className="h-4 w-4 rounded-full bg-secondary flex items-center justify-center text-[10px] text-secondary-foreground">
                         {item.extractionStatus === "Extracted" ? "✓" : "T"}
                       </div>
-                      <span className="text-xs text-muted-foreground">{item.extractionStatus}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {item.extractionStatus}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -151,12 +173,10 @@ export default function DocumentScorecard({ analysis, onClose }: DocumentScoreca
                 <SelectItem value="detailed">Detailed Analysis</SelectItem>
               </SelectContent>
             </Select>
-            <Button>
-              Reanalyze
-            </Button>
+            <Button>Reanalyze</Button>
           </div>
         </div>
       )}
     </div>
   )
-} 
+}
