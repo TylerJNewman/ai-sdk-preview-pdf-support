@@ -19,6 +19,24 @@ export default function DocumentAnalysis({ analysis, clearPDF }: DocumentAnalysi
             <CardTitle className="text-2xl font-bold">Document Analysis Results</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Page Integrity */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">Page Integrity</h3>
+              <div className={`p-4 rounded-lg ${
+                analysis.pageIntegrity.isComplete ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'
+              }`}>
+                <p>Total Pages: {analysis.pageIntegrity.totalPages}</p>
+                <p>{analysis.pageIntegrity.isComplete ? "Document is complete" : "Document may have missing pages"}</p>
+              </div>
+              {!analysis.pageIntegrity.isComplete && analysis.pageIntegrity.missingPages.map((page, index) => (
+                <div key={index} className="p-4 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+                  <p>Missing Page {page.expectedPageNumber}</p>
+                  <p>Reason: {page.reason}</p>
+                  <p>Risk Level: {Math.round(page.riskLevel)}%</p>
+                </div>
+              ))}
+            </div>
+
             {/* Signature Status */}
             <div className="space-y-2">
               <h3 className="text-lg font-semibold">Signature Status</h3>
@@ -45,10 +63,18 @@ export default function DocumentAnalysis({ analysis, clearPDF }: DocumentAnalysi
                   {!field.present && (
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Confidence Level</span>
-                        <span>{field.confidence}%</span>
+                        <span>Risk Level</span>
+                        <span>{field.riskLevel < 30 ? "Low" : field.riskLevel < 70 ? "Medium" : "High"}</span>
                       </div>
-                      <Progress value={field.confidence} className="h-2" />
+                      <div className="h-2 w-full rounded-full bg-gradient-to-r from-green-500 via-orange-400 to-red-500">
+                        <div 
+                          className="h-full rounded-full bg-background" 
+                          style={{ 
+                            width: `${100 - field.riskLevel}%`, 
+                            marginLeft: `${field.riskLevel}%` 
+                          }} 
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

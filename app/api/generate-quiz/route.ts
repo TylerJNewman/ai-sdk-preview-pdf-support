@@ -11,10 +11,23 @@ const anthropicModel = anthropic("claude-3-5-sonnet-20240620");
 // const googleModel = google("gemini-1.5-pro-latest");
 const googleModelLatest = google("gemini-2.0-flash");
 
+// Simple in-memory cache (note: will be cleared on server restart)
+const cache = new Map<string, any>();
 
 export async function POST(req: Request) {
   const { files } = await req.json();
   const firstFile = files[0].data;
+
+  // Create a simple cache key from the file data
+  const cacheKey = Buffer.from(firstFile).toString('base64');
+
+  // Check cache first
+  if (cache.has(cacheKey)) {
+    console.log('Cache hit - returning cached result');
+    return new Response(JSON.stringify(cache.get(cacheKey)), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
   const result = streamObject({
     model: googleModelLatest,
@@ -42,6 +55,8 @@ export async function POST(req: Request) {
     schema: documentAnalysisSchema,
     onFinish({ usage }) {
       console.log('Token usage:', usage);
+      // Store the result in cache
+      cache.set(cacheKey, result);
     },
   });
 

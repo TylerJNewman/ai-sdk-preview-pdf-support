@@ -21,6 +21,7 @@ import NextLink from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { VercelIcon, GitIcon } from "@/components/icons";
 import DocumentAnalysis from "@/components/document-analysis";
+import DocumentScorecard from "./document-scorecard";
 
 export default function AnalyzeDocument() {
   const [files, setFiles] = useState<File[]>([]);
@@ -94,7 +95,12 @@ export default function AnalyzeDocument() {
   };
 
   if (analysis) {
-    return <DocumentAnalysis analysis={analysis} clearPDF={clearPDF} />;
+    return (
+      <div className="flex gap-4">
+        <DocumentAnalysis analysis={analysis} clearPDF={clearPDF} />
+        <DocumentScorecard analysis={analysis} onClose={clearPDF} />
+      </div>
+    );
   }
 
   return (
