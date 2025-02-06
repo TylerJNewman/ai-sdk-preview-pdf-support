@@ -1,16 +1,23 @@
 import { documentAnalysisSchema } from "@/lib/schemas";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import { streamObject } from "ai";
 
 export const maxDuration = 60;
+
+const model = openai("gpt-4o-mini");
+const anthropicModel = anthropic("claude-3-5-sonnet-20240620");
+// const googleModel = google("gemini-1.5-pro-latest");
+const googleModelLatest = google("gemini-2.0-flash");
+
 
 export async function POST(req: Request) {
   const { files } = await req.json();
   const firstFile = files[0].data;
 
   const result = streamObject({
-    model: anthropic("claude-3-5-sonnet-20240620"),
+    model: googleModelLatest,
     messages: [
       {
         role: "system",
